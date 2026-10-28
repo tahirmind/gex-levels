@@ -136,7 +136,8 @@ def expiry_dt(exp):
 # --------------------------------------------------------------------------
 # core calculation
 # --------------------------------------------------------------------------
-def compute(spot, opts, max_dte=30.0, window=0.12, now=None):
+def compute(spot, opts, max_dte=30.0, window=0.12, wall_window=0.05,
+            min_wall_dist=0.0025, now=None):
     now = now or datetime.now(timezone.utc)
     use = []
     for o in opts:
@@ -166,11 +167,20 @@ def compute(spot, opts, max_dte=30.0, window=0.12, now=None):
     net_by_strike = {k: calls.get(k, 0.0) + puts.get(k, 0.0) for k in strikes}
     net_gex = sum(net_by_strike.values())
 
-    # walls
-    above = [k for k in calls if k >= spot] or list(calls)
-    below = [k for k in puts if k <= spot] or list(puts)
-    call_wall = max(above, key=lambda k: calls[k]) if above else 0.0
-    put_wall = min(below, key=lambda k: puts[k]) if below else 0.0  # most negative
+    # walls: only strikes within +-wall_window of spot, and at least min_wall_dist
+    # away from spot so the wall is not simply the at-the-money strike
+    def pick(book, side, pick_max):
+        def ok(k, near):
+            d = (k / spot - 1.0) * side
+            return near <= d <= wall_window
+        for near in (min_wall_dist, 0.0):
+            cands = [k for k in book if ok(k, near)]
+            if cands:
+                return pick_max(cands, key=lambda k: abs(book[k]))
+        return 0.0
+
+    call_wall = pick(calls, +1, max)
+    put_wall = pick(puts, -1, max)
 
     # gamma flip: re-price gamma on a spot grid and find the zero crossing
     flip = 0.0
@@ -262,6 +272,10 @@ def main():
     ap.add_argument("--max-dte", type=float, default=30.0)
     ap.add_argument("--window", type=float, default=0.12,
                     help="strike window around spot (0.12 = +-12%%)")
+    ap.add_argument("--wall-window", type=float, default=0.05,
+                    help="walls must be within +-this fraction of spot (0.05 = 5%%)")
+    ap.add_argument("--min-wall-dist", type=float, default=0.0025,
+                    help="walls must be at least this fraction away from spot (0.0025 = 0.25%%)")
     ap.add_argument("--file", help="read a saved CBOE chain JSON instead of downloading")
     ap.add_argument("--selftest", action="store_true")
     a = ap.parse_args()
@@ -278,7 +292,7 @@ def main():
     if spot <= 0 or not opts:
         raise SystemExit("ERROR: no spot price or options in the data "
                          "(CBOE format may have changed)")
-    res = compute(spot, opts, a.max_dte, a.window)
+    res = compute(spot, opts, a.max_dte, a.window, a.wall_window, a.min_wall_dist)
 
     now = datetime.now(timezone.utc)
     out = {
