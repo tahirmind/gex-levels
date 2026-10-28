@@ -1,0 +1,38 @@
+name: GEX levels
+
+on:
+  schedule:
+    # UTC. Covers the US cash session in both summer (EDT) and winter (EST) time.
+    - cron: "*/15 12-21 * * 1-5"
+    # pre-market refresh (fresh overnight open interest)
+    - cron: "0 9,11 * * 1-5"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: gex-levels
+  cancel-in-progress: false
+
+jobs:
+  levels:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compute GEX levels
+        run: python3 gex_levels.py --symbol NDX --out levels.json
+
+      - name: Publish levels.json to the "levels" branch (history is overwritten, no repo bloat)
+        run: |
+          mkdir -p out
+          cp levels.json out/levels.json
+          cd out
+          git init -q -b levels
+          git config user.name  "gex-bot"
+          git config user.email "gex-bot@users.noreply.github.com"
+          git add levels.json
+          git commit -q -m "levels $(date -u +%FT%TZ)"
+          git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" HEAD:levels
