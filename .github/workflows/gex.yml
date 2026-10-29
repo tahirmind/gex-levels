@@ -18,21 +18,43 @@ concurrency:
 jobs:
   levels:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 
-      - name: Compute GEX levels
-        run: python3 gex_levels.py --symbol NDX --out levels.json
-
-      - name: Publish levels.json to the "levels" branch (history is overwritten, no repo bloat)
+      - name: Restore previous levels (a failing feed never deletes the other one)
         run: |
           mkdir -p out
-          cp levels.json out/levels.json
+          git fetch --depth=1 origin levels || true
+          for f in levels.json levels_gold.json; do
+            if git cat-file -e "FETCH_HEAD:$f" 2>/dev/null; then
+              git show "FETCH_HEAD:$f" > "out/$f"
+            fi
+          done
+
+      - name: Nasdaq-100 levels (USTEC) -> levels.json
+        id: ndx
+        continue-on-error: true
+        run: python3 gex_levels.py --symbol NDX --out out/levels.json
+
+      - name: Gold levels (from GLD options) -> levels_gold.json
+        id: gold
+        continue-on-error: true
+        run: python3 gex_levels.py --symbol GLD --out out/levels_gold.json
+
+      - name: Publish to the "levels" branch (history is overwritten, no repo bloat)
+        run: |
           cd out
+          if [ -z "$(ls -A)" ]; then echo "nothing to publish"; exit 0; fi
           git init -q -b levels
           git config user.name  "gex-bot"
           git config user.email "gex-bot@users.noreply.github.com"
-          git add levels.json
+          git add -A
           git commit -q -m "levels $(date -u +%FT%TZ)"
           git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" HEAD:levels
+
+      - name: Mark the run red if a feed failed (the other feed was still published)
+        if: steps.ndx.outcome == 'failure' || steps.gold.outcome == 'failure'
+        run: |
+          echo "NDX: ${{ steps.ndx.outcome }}   GOLD: ${{ steps.gold.outcome }}"
+          exit 1
