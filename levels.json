@@ -1,0 +1,23 @@
+{
+ "symbol": "NDX",
+ "spot": 28384.85,
+ "spot_epoch": 1793391299,
+ "updated_epoch": 1793408698,
+ "updated_utc": "2026-10-31T01:04:58Z",
+ "net_gex": -880293870.1,
+ "regime": "negative",
+ "gamma_flip": 28888.75,
+ "call_wall": 29675.0,
+ "put_wall": 27500.0,
+ "options_used": 2473,
+ "mag1": 29675.0,
+ "mag1_gex": 563909055.84,
+ "mag2": 27500.0,
+ "mag2_gex": -359583671.41,
+ "mag3": 28000.0,
+ "mag3_gex": -185633156.83,
+ "mag4": 29000.0,
+ "mag4_gex": -94266837.45,
+ "mag5": 28500.0,
+ "mag5_gex": -89432640.66
+}
