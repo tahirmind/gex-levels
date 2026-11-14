@@ -1,0 +1,23 @@
+{
+ "symbol": "GLD",
+ "spot": 355.73,
+ "spot_epoch": 1794603599,
+ "updated_epoch": 1794615572,
+ "updated_utc": "2026-11-14T00:19:32Z",
+ "net_gex": -698234617.29,
+ "regime": "negative",
+ "gamma_flip": 368.63,
+ "call_wall": 360.0,
+ "put_wall": 345.0,
+ "options_used": 1070,
+ "mag1": 345.0,
+ "mag1_gex": -230662889.88,
+ "mag2": 340.0,
+ "mag2_gex": -99990715.57,
+ "mag3": 350.0,
+ "mag3_gex": -89787757.97,
+ "mag4": 355.0,
+ "mag4_gex": -71592360.85,
+ "mag5": 360.0,
+ "mag5_gex": -29046528.53
+}
